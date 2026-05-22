@@ -9,7 +9,7 @@ import { mkdirp } from './utils.js';
 // 	process.exit();
 // };
 
-var homeVar="$HOME";
+var homeVar = '$HOME';
 
 // var existBackend=false;
 // var existPythonRayServe=false;
@@ -44,16 +44,24 @@ chgrp sharedFolderGroup /home/sharedFolder
 # restrict the permissions on the shared folder
 chmod 1770 /home/sharedFolder/
 echo "Done"
-`
-  homeVar = "/home/sharedFolder";
+`;
+  homeVar = '/home/sharedFolder';
   fs.writeFileSync(path.join(destination, `createSystemUser.sh`), scriptFile);
 }
 
-export async function generateNginxPM2Configs(cwd: string, hasSystemUser: boolean, hasBackend: boolean, hasPythonServer: boolean,modelServingFct: string, appName: string, gitPath: string, domainName: string): Promise<void>{
+export async function generateNginxPM2Configs(
+  cwd: string,
+  hasSystemUser: boolean,
+  hasBackend: boolean,
+  hasPythonServer: boolean,
+  modelServingFct: string,
+  appName: string,
+  gitPath: string,
+  domainName: string,
+): Promise<void> {
+  let appPath = path.join(homeVar, appName);
 
-	let appPath= path.join(homeVar, appName);
-
-	let scriptFile = `#!/bin/bash
+  let scriptFile = `#!/bin/bash
 
 # Note : this script assumes to be run with sudo permissions
 
@@ -105,15 +113,15 @@ mkdir ${homeVar}/.nvm
 
 # Download and install nvm:
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
-`
-	if(hasSystemUser){
-		scriptFile +=`
+`;
+  if (hasSystemUser) {
+    scriptFile += `
 # make the group control the nvm files
 chgrp -R sharedFolderGroup ${homeVar}/.nvm
-`
-	}
+`;
+  }
 
-scriptFile += `
+  scriptFile += `
 # locate nvm
 \. "${homeVar}/.nvm/nvm.sh"
 
@@ -172,8 +180,8 @@ sudo apt install nginx
 sudo mkdir -p /etc/nginx/sites-available/
 sudo mkdir -p /etc/nginx/sites-enabled/
 
-`
-	let nginxConfFile = `server {
+`;
+  let nginxConfFile = `server {
 	listen 80;
 
 	server_name ${domainName};
@@ -196,9 +204,9 @@ sudo mkdir -p /etc/nginx/sites-enabled/
 	  proxy_read_timeout 240s;
 	}
 
-`
-	if(hasBackend){
-		nginxConfFile += `
+`;
+  if (hasBackend) {
+    nginxConfFile += `
 	location /api/ {
       rewrite ^/api(/?)(.*) /$2 break;
       proxy_pass http://127.0.0.1:3030;
@@ -220,10 +228,10 @@ sudo mkdir -p /etc/nginx/sites-enabled/
       # enable strict transport security only if you understand the implications
 	}
 
-`
-	}
-	if(hasPythonServer){
-		nginxConfFile += `
+`;
+  }
+  if (hasPythonServer) {
+    nginxConfFile += `
   location /model/ {
       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
       proxy_set_header X-Real-IP $remote_addr;
@@ -238,13 +246,11 @@ sudo mkdir -p /etc/nginx/sites-enabled/
       proxy_read_timeout 240s;
   }
 
-`
-	}
-	nginxConfFile += `}`
+`;
+  }
+  nginxConfFile += `}`;
 
-
-
-	let mainNginxConf = `user www-data;
+  let mainNginxConf = `user www-data;
 worker_processes auto;
 pid /run/nginx.pid;
 error_log /var/log/nginx/error.log;
@@ -306,15 +312,15 @@ http {
 	include /etc/nginx/conf.d/*.conf;
 	include /etc/nginx/sites-enabled/*;
 }
-`
+`;
 
-	scriptFile+=`
+  scriptFile += `
 # Create symbolic link in sites-enabled
 sudo ln -s /etc/nginx/sites-available/${domainName}.conf ${domainName}
 sudo rm default
-`
-if(hasPythonServer){
-	scriptFile+=`
+`;
+  if (hasPythonServer) {
+    scriptFile += `
 # ----------------------------------------------------
 # python
 
@@ -344,8 +350,8 @@ uv venv --python 3.13
 # add pyproject.toml in app
 cd ${homeVar}/rlhf-nlp-app
 sudo touch pyproject.toml
-`
-	var pyprojectFile = `[project]
+`;
+    var pyprojectFile = `[project]
 name = "${appName}"
 version = "0.1.0"
 description = "Python server for Marcelle App"
@@ -356,17 +362,17 @@ dependencies = [
 	"transformers",
 	"torch",
 ]
-`
-scriptFile+=`
+`;
+    scriptFile += `
 # update venv according to pyproject
 uv sync
 
 # go to the right folder and run ray serve
 #cd src/
 #${homeVar}/uv/uv run serve run serve_model:promptCompleter
-`
-}
-	scriptFile+=`
+`;
+  }
+  scriptFile += `
 # ----------------------------------------------------
 # Setup your PM2 project
 
@@ -392,22 +398,21 @@ HOME=$TMP
 # Locate npm & uv
 #\. "${homeVar}/.nvm/nvm.sh"
 #alias uv=${homeVar}/uv/uv
-`
-	if(hasSystemUser){
-		scriptFile+=`
+`;
+  if (hasSystemUser) {
+    scriptFile += `
 #sudo -u serverUser bash -c 'source "${homeVar}/.nvm/nvm.sh" && pm2 start ecosystem.config.cjs'
 
 ### CHECK user run
 #ps aux
-`
-	}
-	else{
-		scriptFile+=`
+`;
+  } else {
+    scriptFile += `
 	#pm2 start ecosystem.config.cjs
-`
-	}
+`;
+  }
 
-	let ecosystemconfigFile =`module.exports = {
+  let ecosystemconfigFile = `module.exports = {
 apps: [
   {
     name: '${appName}',
@@ -418,9 +423,9 @@ apps: [
       PM2_SERVE_SPA: true,
       PM2_SERVE_HOMEPAGE: '/index.html',
     },
-  }`
-  if(hasBackend){
-	  ecosystemconfigFile +=`,
+  }`;
+  if (hasBackend) {
+    ecosystemconfigFile += `,
   {
 	  name: '${appName}/api',
 	  script: 'npm',
@@ -433,10 +438,10 @@ apps: [
 		  MONGODB_URL: 'mongodb://127.0.0.1:27017/${appName}',
 	  }
   }
-`
+`;
   }
-  if(hasPythonServer){
-	  ecosystemconfigFile +=`,
+  if (hasPythonServer) {
+    ecosystemconfigFile += `,
 	{
 		name: '${appName}/model',
 		script: 'uv',
@@ -446,11 +451,11 @@ apps: [
 
 		}
 	}
-`
-	}
-ecosystemconfigFile +=`],
+`;
+  }
+  ecosystemconfigFile += `],
 }
-`
+`;
 
   let destination = path.join(cwd, 'deployment');
   mkdirp(destination);
@@ -458,5 +463,6 @@ ecosystemconfigFile +=`],
   fs.writeFileSync(path.join(destination, `nginx.conf`), mainNginxConf);
   fs.writeFileSync(path.join(destination, `${domainName}.conf`), nginxConfFile);
   fs.writeFileSync(path.join(destination, `ecosystem.config.cjs`), ecosystemconfigFile);
-  if(pyprojectFile != null) fs.writeFileSync(path.join(destination, `pyproject.toml`), pyprojectFile);
+  if (pyprojectFile != null)
+    fs.writeFileSync(path.join(destination, `pyproject.toml`), pyprojectFile);
 }
